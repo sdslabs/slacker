@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/shomali11/slacker"
+	"github.com/sdslabs/slacker"
 )
 
 func main() {
@@ -23,7 +23,7 @@ func main() {
 		},
 	}
 
-	bot.Command("repeat {word} {number}", definition)
+	bot.Command("repeat <word:string> <number:integer>", definition)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

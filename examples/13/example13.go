@@ -7,7 +7,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/shomali11/slacker"
+	"github.com/sdslabs/slacker"
 )
 
 func main() {

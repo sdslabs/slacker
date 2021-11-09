@@ -6,8 +6,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/shomali11/commander"
-	"github.com/shomali11/proper"
+	allot "github.com/sdslabs/allot/pkg"
 	"github.com/shomali11/slacker"
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/socketmode"
@@ -16,10 +15,11 @@ import (
 func main() {
 	bot := slacker.NewClient(os.Getenv("SLACK_BOT_TOKEN"), os.Getenv("SLACK_APP_TOKEN"), slacker.WithDebug(true))
 	bot.CustomCommand(func(usage string, definition *slacker.CommandDefinition) slacker.BotCommand {
+		command := allot.New(fmt.Sprintf("custom-prefix %s", usage))
 		return &cmd{
 			usage:      usage,
 			definition: definition,
-			command:    commander.NewCommand(fmt.Sprintf("custom-prefix %s", usage)),
+			command:    command,
 		}
 	})
 
@@ -42,7 +42,7 @@ func main() {
 type cmd struct {
 	usage      string
 	definition *slacker.CommandDefinition
-	command    *commander.Command
+	command    *allot.Command
 }
 
 func (c *cmd) Usage() string {
@@ -53,12 +53,20 @@ func (c *cmd) Definition() *slacker.CommandDefinition {
 	return c.definition
 }
 
-func (c *cmd) Match(text string) (*proper.Properties, bool) {
+func (c *cmd) Match(text string) (allot.MatchInterface, error) {
 	return c.command.Match(text)
 }
 
-func (c *cmd) Tokenize() []*commander.Token {
+func (c *cmd) Matches(text string) bool {
+	return c.command.Matches(text)
+}
+
+func (c *cmd) Tokenize() []*allot.Token {
 	return c.command.Tokenize()
+}
+
+func (c *cmd) Parameters() []allot.Parameter {
+	return c.command.Parameters()
 }
 
 func (c *cmd) Execute(botCtx slacker.BotContext, request slacker.Request, response slacker.ResponseWriter) {

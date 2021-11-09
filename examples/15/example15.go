@@ -2,11 +2,12 @@ package main
 
 import (
 	"context"
-	"github.com/shomali11/slacker"
-	"github.com/slack-go/slack"
-	"github.com/slack-go/slack/socketmode"
 	"log"
 	"os"
+
+	"github.com/sdslabs/slacker"
+	"github.com/slack-go/slack"
+	"github.com/slack-go/slack/socketmode"
 )
 
 func main() {

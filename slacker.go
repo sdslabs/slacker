@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 
-	"github.com/shomali11/proper"
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/slackevents"
 	"github.com/slack-go/slack/socketmode"
+
+	allot "github.com/sdslabs/allot/pkg"
 )
 
 const (
@@ -18,7 +20,7 @@ const (
 	star                = "*"
 	newLine             = "\n"
 	invalidToken        = "invalid token"
-	helpCommand         = "help"
+	helpCommand         = "(Bot|bot) help"
 	directChannelMarker = "D"
 	userMentionFormat   = "<@%s>"
 	codeMessageFormat   = "`%s`"
@@ -27,10 +29,12 @@ const (
 	quoteMessageFormat  = ">_*Example:* %s_"
 	authorizedUsersOnly = "Authorized users only"
 	slackBotUser        = "USLACKBOT"
+	botPrefix           = "(Bot|bot) "
 )
 
 var (
-	errUnauthorized = errors.New("you are not authorized to execute this command")
+	defaultIncludeChannelIds = []string{"all"}
+	errUnauthorized          = errors.New("you are not authorized to execute this command")
 )
 
 func defaultCleanEventInput(msg string) string {
@@ -69,7 +73,7 @@ type Slacker struct {
 	botCommands             []BotCommand
 	botContextConstructor   func(ctx context.Context, api *slack.Client, client *socketmode.Client, evt *MessageEvent) BotContext
 	commandConstructor      func(usage string, definition *CommandDefinition) BotCommand
-	requestConstructor      func(botCtx BotContext, properties *proper.Properties) Request
+	requestConstructor      func(botCtx BotContext, params []allot.Parameter, match allot.MatchInterface) Request
 	responseConstructor     func(botCtx BotContext) ResponseWriter
 	initHandler             func()
 	errorHandler            func(err string)
@@ -130,7 +134,8 @@ func (s *Slacker) CustomCommand(commandConstructor func(usage string, definition
 }
 
 // CustomRequest creates a new request
-func (s *Slacker) CustomRequest(requestConstructor func(botCtx BotContext, properties *proper.Properties) Request) {
+func (s *Slacker) CustomRequest(requestConstructor func(botCtx BotContext, parameters []allot.Parameter,
+	match allot.MatchInterface) Request) {
 	s.requestConstructor = requestConstructor
 }
 
@@ -161,10 +166,35 @@ func (s *Slacker) Help(definition *CommandDefinition) {
 
 // Command define a new command and append it to the list of existing commands
 func (s *Slacker) Command(usage string, definition *CommandDefinition) {
-	if s.commandConstructor == nil {
-		s.commandConstructor = NewBotCommand
-	}
-	s.botCommands = append(s.botCommands, s.commandConstructor(usage, definition))
+	s.botCommands = append(s.botCommands, NewBotCommand(usage, definition, true, defaultIncludeChannelIds))
+}
+
+// BotCommand define a new bot command and append it to the list of existing commands
+func (s *Slacker) BotCommand(usage string, definition *CommandDefinition) {
+	s.botCommands = append(s.botCommands, NewBotCommand(botPrefix+usage, definition, true, defaultIncludeChannelIds))
+}
+
+// GeneralCommand define a new bot non parameterized command and append it to the list of existing commands
+func (s *Slacker) GeneralCommand(usage string, definition *CommandDefinition) {
+	s.botCommands = append(s.botCommands, NewBotCommand(usage, definition, false, defaultIncludeChannelIds))
+}
+
+// CommandWithIncludeChannels define a new command and append it to the list of existing commands with include channels filter
+func (s *Slacker) CommandWithIncludeChannels(usage string, definition *CommandDefinition, includeChannelIds []string) {
+	s.botCommands = append(s.botCommands, NewBotCommand(usage, definition, true, includeChannelIds))
+}
+
+// BotCommandWithIncludeChannels define a new bot command and append it to the list of existing commands with include channels filter
+func (s *Slacker) BotCommandWithIncludeChannels(usage string, definition *CommandDefinition, includeChannelIds []string) {
+	s.botCommands = append(s.botCommands, NewBotCommand(botPrefix+usage, definition, true, includeChannelIds))
+}
+
+/*
+GeneralCommandWithIncludeChannels define a new bot non parameterized command and
+append it to the list of existing commands with include channels filter
+*/
+func (s *Slacker) GeneralCommandWithIncludeChannels(usage string, definition *CommandDefinition, includeChannelIds []string) {
+	s.botCommands = append(s.botCommands, NewBotCommand(usage, definition, false, includeChannelIds))
 }
 
 // CommandEvents returns read only command events channel
@@ -268,9 +298,9 @@ func (s *Slacker) defaultHelp(botCtx BotContext, request Request, response Respo
 		tokens := command.Tokenize()
 		for _, token := range tokens {
 			if token.IsParameter() {
-				helpMessage += fmt.Sprintf(codeMessageFormat, token.Word) + space
+				helpMessage += fmt.Sprintf(codeMessageFormat, token.Word()) + space
 			} else {
-				helpMessage += fmt.Sprintf(boldMessageFormat, token.Word) + space
+				helpMessage += fmt.Sprintf(boldMessageFormat, token.Word()) + space
 			}
 		}
 
@@ -293,7 +323,10 @@ func (s *Slacker) defaultHelp(botCtx BotContext, request Request, response Respo
 	if authorizedCommandAvailable {
 		helpMessage += fmt.Sprintf(codeMessageFormat, star+space+authorizedUsersOnly) + newLine
 	}
-	response.Reply(helpMessage)
+	err := response.Reply(helpMessage)
+	if err != nil {
+		log.Println(err)
+	}
 }
 
 func (s *Slacker) prependHelpHandle() {
@@ -309,7 +342,7 @@ func (s *Slacker) prependHelpHandle() {
 		s.helpDefinition.Description = helpCommand
 	}
 
-	s.botCommands = append([]BotCommand{NewBotCommand(helpCommand, s.helpDefinition)}, s.botCommands...)
+	s.botCommands = append([]BotCommand{NewBotCommand(helpCommand, s.helpDefinition, true, defaultIncludeChannelIds)}, s.botCommands...)
 }
 
 func (s *Slacker) handleInteractiveEvent(slacker *Slacker, evt *socketmode.Event, callback *slack.InteractionCallback, req *socketmode.Request) {
@@ -373,33 +406,48 @@ func (s *Slacker) handleMessageEvent(ctx context.Context, evt interface{}, req *
 
 	botCtx := s.botContextConstructor(ctx, s.client, s.socketModeClient, ev)
 	response := s.responseConstructor(botCtx)
-
 	eventTxt := s.cleanEventInput(ev.Text)
+	var request Request
+	var parameters []allot.Parameter
+	var cmdMatch allot.MatchInterface
 
 	for _, cmd := range s.botCommands {
-		parameters, isMatch := cmd.Match(eventTxt)
-		if !isMatch {
-			continue
-		}
+		if cmd.ContainsChannel(ev.Channel) {
 
-		request := s.requestConstructor(botCtx, parameters)
-		if cmd.Definition().AuthorizationFunc != nil && !cmd.Definition().AuthorizationFunc(botCtx, request) {
-			response.ReportError(s.errUnauthorized)
+			if cmd.IsParameterizedCommand() {
+				cmdMatches := cmd.Matches(ev.Text)
+				if !cmdMatches {
+					continue
+				}
+				parameters = cmd.Parameters()
+				cmdMatch, _ = cmd.Match(eventTxt)
+			} else {
+				cmdMatches := cmd.MsgContains(eventTxt)
+				if !cmdMatches {
+					continue
+				}
+
+			}
+
+			request = s.requestConstructor(botCtx, parameters, cmdMatch)
+			if cmd.Definition().AuthorizationFunc != nil && !cmd.Definition().AuthorizationFunc(botCtx, request) {
+				response.ReportError(s.errUnauthorized)
+				return
+			}
+
+			select {
+			case s.commandChannel <- NewCommandEvent(cmd.Usage(), parameters, ev):
+			default:
+				// full channel, dropped event
+			}
+
+			cmd.Execute(botCtx, request, response)
 			return
 		}
-
-		select {
-		case s.commandChannel <- NewCommandEvent(cmd.Usage(), parameters, ev):
-		default:
-			// full channel, dropped event
-		}
-
-		cmd.Execute(botCtx, request, response)
-		return
 	}
 
 	if s.defaultMessageHandler != nil {
-		request := s.requestConstructor(botCtx, nil)
+		request := s.requestConstructor(botCtx, nil, nil)
 		s.defaultMessageHandler(botCtx, request, response)
 	}
 }
