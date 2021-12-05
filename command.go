@@ -1,8 +1,7 @@
 package slacker
 
 import (
-	"github.com/shomali11/commander"
-	"github.com/shomali11/proper"
+	allot "github.com/sdslabs/allot/pkg"
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/socketmode"
 )
@@ -23,7 +22,7 @@ type CommandDefinition struct {
 
 // NewBotCommand creates a new bot command object
 func NewBotCommand(usage string, definition *CommandDefinition) BotCommand {
-	command := commander.NewCommand(usage)
+	command := allot.New(usage)
 	return &botCommand{
 		usage:      usage,
 		definition: definition,
@@ -36,8 +35,10 @@ type BotCommand interface {
 	Usage() string
 	Definition() *CommandDefinition
 
-	Match(text string) (*proper.Properties, bool)
-	Tokenize() []*commander.Token
+	Match(req string) (allot.MatchInterface, error)
+	Matches(text string) bool
+	Tokenize() []*allot.Token
+	Parameters() []allot.Parameter
 	Execute(botCtx BotContext, request Request, response ResponseWriter)
 	Interactive(*Slacker, *socketmode.Event, *slack.InteractionCallback, *socketmode.Request)
 }
@@ -46,7 +47,7 @@ type BotCommand interface {
 type botCommand struct {
 	usage      string
 	definition *CommandDefinition
-	command    *commander.Command
+	command    *allot.Command
 }
 
 // Usage returns the command usage
@@ -60,13 +61,23 @@ func (c *botCommand) Definition() *CommandDefinition {
 }
 
 // Match determines whether the bot should respond based on the text received
-func (c *botCommand) Match(text string) (*proper.Properties, bool) {
+func (c *botCommand) Match(text string) (allot.MatchInterface, error) {
 	return c.command.Match(text)
 }
 
+// Matches checks if a comand definition matches a request
+func (c *botCommand) Matches(text string) bool {
+	return c.command.Matches(text)
+}
+
 // Tokenize returns the command format's tokens
-func (c *botCommand) Tokenize() []*commander.Token {
+func (c *botCommand) Tokenize() []*allot.Token {
 	return c.command.Tokenize()
+}
+
+// Parameters returns the command format's tokens
+func (c *botCommand) Parameters() []allot.Parameter {
+	return c.command.Parameters()
 }
 
 // Execute executes the handler logic

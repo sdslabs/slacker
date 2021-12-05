@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 
-	"github.com/shomali11/proper"
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/slackevents"
 	"github.com/slack-go/slack/socketmode"
+
+	allot "github.com/sdslabs/allot/pkg"
 )
 
 const (
@@ -69,7 +71,7 @@ type Slacker struct {
 	botCommands             []BotCommand
 	botContextConstructor   func(ctx context.Context, api *slack.Client, client *socketmode.Client, evt *MessageEvent) BotContext
 	commandConstructor      func(usage string, definition *CommandDefinition) BotCommand
-	requestConstructor      func(botCtx BotContext, properties *proper.Properties) Request
+	requestConstructor      func(botCtx BotContext, params []allot.Parameter, match allot.MatchInterface) Request
 	responseConstructor     func(botCtx BotContext) ResponseWriter
 	initHandler             func()
 	errorHandler            func(err string)
@@ -130,7 +132,8 @@ func (s *Slacker) CustomCommand(commandConstructor func(usage string, definition
 }
 
 // CustomRequest creates a new request
-func (s *Slacker) CustomRequest(requestConstructor func(botCtx BotContext, properties *proper.Properties) Request) {
+func (s *Slacker) CustomRequest(requestConstructor func(botCtx BotContext, parameters []allot.Parameter,
+	match allot.MatchInterface) Request) {
 	s.requestConstructor = requestConstructor
 }
 
@@ -293,7 +296,10 @@ func (s *Slacker) defaultHelp(botCtx BotContext, request Request, response Respo
 	if authorizedCommandAvailable {
 		helpMessage += fmt.Sprintf(codeMessageFormat, star+space+authorizedUsersOnly) + newLine
 	}
-	response.Reply(helpMessage)
+	err := response.Reply(helpMessage)
+	if err != nil {
+		log.Println(err)
+	}
 }
 
 func (s *Slacker) prependHelpHandle() {
@@ -377,12 +383,12 @@ func (s *Slacker) handleMessageEvent(ctx context.Context, evt interface{}, req *
 	eventTxt := s.cleanEventInput(ev.Text)
 
 	for _, cmd := range s.botCommands {
-		parameters, isMatch := cmd.Match(eventTxt)
-		if !isMatch {
+		cmdMatch, matchErr := cmd.Match(eventTxt)
+		if matchErr != nil {
 			continue
 		}
-
-		request := s.requestConstructor(botCtx, parameters)
+		parameters := cmd.Parameters()
+		request := s.requestConstructor(botCtx, parameters, cmdMatch)
 		if cmd.Definition().AuthorizationFunc != nil && !cmd.Definition().AuthorizationFunc(botCtx, request) {
 			response.ReportError(s.errUnauthorized)
 			return
@@ -399,7 +405,7 @@ func (s *Slacker) handleMessageEvent(ctx context.Context, evt interface{}, req *
 	}
 
 	if s.defaultMessageHandler != nil {
-		request := s.requestConstructor(botCtx, nil)
+		request := s.requestConstructor(botCtx, nil, nil)
 		s.defaultMessageHandler(botCtx, request, response)
 	}
 }
