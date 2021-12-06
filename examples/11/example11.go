@@ -2,9 +2,10 @@ package main
 
 import (
 	"context"
-	"github.com/shomali11/slacker"
 	"log"
 	"os"
+
+	"github.com/sdslabs/slacker"
 )
 
 func main() {

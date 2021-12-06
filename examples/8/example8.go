@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/shomali11/slacker"
+	"github.com/sdslabs/slacker"
 	"github.com/slack-go/slack"
 )
 
