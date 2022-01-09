@@ -170,6 +170,12 @@ func (s *Slacker) Command(usage string, definition *CommandDefinition) {
 	s.botCommands = append(s.botCommands, s.commandConstructor(usage, definition))
 }
 
+// BotCommand define a new bot command and append it to the list of existing commands
+func (s *Slacker) BotCommand(usage string, definition *CommandDefinition) {
+	botPrefix := "(Bot|bot) "
+	s.botCommands = append(s.botCommands, NewBotCommand(botPrefix+usage, definition))
+}
+
 // CommandEvents returns read only command events channel
 func (s *Slacker) CommandEvents() <-chan *CommandEvent {
 	return s.commandChannel
