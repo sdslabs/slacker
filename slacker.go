@@ -334,11 +334,12 @@ func (s *Slacker) handleMessageEvent(ctx context.Context, evt interface{}) {
 	response := s.responseConstructor(botCtx)
 
 	for _, cmd := range s.botCommands {
-		cmdMatch, matchErr := cmd.Match(ev.Text)
-		if matchErr != nil {
+		cmdMatches := cmd.Matches(ev.Text)
+		if !cmdMatches {
 			continue
 		}
 		parameters := cmd.Parameters()
+		cmdMatch, _ := cmd.Match(ev.Text)
 		request := s.requestConstructor(botCtx, parameters, cmdMatch)
 		if cmd.Definition().AuthorizationFunc != nil && !cmd.Definition().AuthorizationFunc(botCtx, request) {
 			response.ReportError(s.errUnauthorized)
