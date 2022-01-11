@@ -4,14 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"strings"
 
+	"github.com/shomali11/proper"
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/slackevents"
 	"github.com/slack-go/slack/socketmode"
-
-	allot "github.com/sdslabs/allot/pkg"
 )
 
 const (
@@ -71,7 +69,7 @@ type Slacker struct {
 	botCommands             []BotCommand
 	botContextConstructor   func(ctx context.Context, api *slack.Client, client *socketmode.Client, evt *MessageEvent) BotContext
 	commandConstructor      func(usage string, definition *CommandDefinition) BotCommand
-	requestConstructor      func(botCtx BotContext, params []allot.Parameter, match allot.MatchInterface) Request
+	requestConstructor      func(botCtx BotContext, properties *proper.Properties) Request
 	responseConstructor     func(botCtx BotContext) ResponseWriter
 	initHandler             func()
 	errorHandler            func(err string)
@@ -132,8 +130,7 @@ func (s *Slacker) CustomCommand(commandConstructor func(usage string, definition
 }
 
 // CustomRequest creates a new request
-func (s *Slacker) CustomRequest(requestConstructor func(botCtx BotContext, parameters []allot.Parameter,
-	match allot.MatchInterface) Request) {
+func (s *Slacker) CustomRequest(requestConstructor func(botCtx BotContext, properties *proper.Properties) Request) {
 	s.requestConstructor = requestConstructor
 }
 
@@ -168,12 +165,6 @@ func (s *Slacker) Command(usage string, definition *CommandDefinition) {
 		s.commandConstructor = NewBotCommand
 	}
 	s.botCommands = append(s.botCommands, s.commandConstructor(usage, definition))
-}
-
-// BotCommand define a new bot command and append it to the list of existing commands
-func (s *Slacker) BotCommand(usage string, definition *CommandDefinition) {
-	botPrefix := "(Bot|bot) "
-	s.botCommands = append(s.botCommands, NewBotCommand(botPrefix+usage, definition))
 }
 
 // CommandEvents returns read only command events channel
@@ -302,10 +293,7 @@ func (s *Slacker) defaultHelp(botCtx BotContext, request Request, response Respo
 	if authorizedCommandAvailable {
 		helpMessage += fmt.Sprintf(codeMessageFormat, star+space+authorizedUsersOnly) + newLine
 	}
-	err := response.Reply(helpMessage)
-	if err != nil {
-		log.Println(err)
-	}
+	response.Reply(helpMessage)
 }
 
 func (s *Slacker) prependHelpHandle() {
@@ -389,14 +377,12 @@ func (s *Slacker) handleMessageEvent(ctx context.Context, evt interface{}, req *
 	eventTxt := s.cleanEventInput(ev.Text)
 
 	for _, cmd := range s.botCommands {
-
-		cmdMatches := cmd.Matches(eventTxt)
-		if !cmdMatches {
+		parameters, isMatch := cmd.Match(eventTxt)
+		if !isMatch {
 			continue
 		}
-		parameters := cmd.Parameters()
-		cmdMatch, _ := cmd.Match(eventTxt)
-		request := s.requestConstructor(botCtx, parameters, cmdMatch)
+
+		request := s.requestConstructor(botCtx, parameters)
 		if cmd.Definition().AuthorizationFunc != nil && !cmd.Definition().AuthorizationFunc(botCtx, request) {
 			response.ReportError(s.errUnauthorized)
 			return
@@ -413,7 +399,7 @@ func (s *Slacker) handleMessageEvent(ctx context.Context, evt interface{}, req *
 	}
 
 	if s.defaultMessageHandler != nil {
-		request := s.requestConstructor(botCtx, nil, nil)
+		request := s.requestConstructor(botCtx, nil)
 		s.defaultMessageHandler(botCtx, request, response)
 	}
 }
