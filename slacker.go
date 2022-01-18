@@ -20,7 +20,7 @@ const (
 	star                = "*"
 	newLine             = "\n"
 	invalidToken        = "invalid token"
-	helpCommand         = "help"
+	helpCommand         = "(Bot|bot) help"
 	directChannelMarker = "D"
 	userMentionFormat   = "<@%s>"
 	codeMessageFormat   = "`%s`"
