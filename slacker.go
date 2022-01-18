@@ -350,7 +350,7 @@ func (s *Slacker) handleMessageEvent(ctx context.Context, evt interface{}) {
 			parameters = cmd.Parameters()
 			cmdMatch, _ = cmd.Match(ev.Text)
 		} else {
-			cmdMatches := cmd.Contains(ev.Text)
+			cmdMatches := cmd.MsgContains(ev.Text)
 			if !cmdMatches {
 				continue
 			}

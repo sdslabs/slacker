@@ -31,7 +31,7 @@ type BotCommand interface {
 	Definition() *CommandDefinition
 	IsParameterizedCommand() bool
 
-	Contains(text string) bool
+	MsgContains(text string) bool
 	Match(req string) (allot.MatchInterface, error)
 	Matches(text string) bool
 	Tokenize() []*allot.Token
@@ -62,8 +62,8 @@ func (c *botCommand) IsParameterizedCommand() bool {
 	return c.isParameterizedCommand
 }
 
-func (c *botCommand) Contains(text string) bool {
-	return strings.Contains(c.usage, text)
+func (c *botCommand) MsgContains(text string) bool {
+	return strings.Contains(text, c.usage)
 }
 
 // Match determines whether the bot should respond based on the text received
