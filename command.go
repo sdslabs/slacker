@@ -72,7 +72,7 @@ func (c *botCommand) IsParameterizedCommand() bool {
 }
 
 func (c *botCommand) MsgContains(text string) bool {
-	return strings.Contains(text, c.usage)
+	return strings.Contains(strings.ToLower(text), c.usage)
 }
 
 // Match determines whether the bot should respond based on the text received
