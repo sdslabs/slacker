@@ -17,6 +17,10 @@ Built on top of the Slack API [github.com/slack-go/slack](https://github.com/sla
 - Produces events for executed commands
 - Full access to the Slack API [github.com/slack-go/slack](https://github.com/slack-go/slack)
 
+## Features in forked repo
+
+- Support for non-parameterized command
+
 ## Dependencies
 
 - `commander` [github.com/shomali11/commander](https://github.com/shomali11/commander)
