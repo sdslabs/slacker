@@ -164,16 +164,18 @@ func (s *Slacker) Help(definition *CommandDefinition) {
 
 // Command define a new command and append it to the list of existing commands
 func (s *Slacker) Command(usage string, definition *CommandDefinition) {
-	if s.commandConstructor == nil {
-		s.commandConstructor = NewBotCommand
-	}
-	s.botCommands = append(s.botCommands, s.commandConstructor(usage, definition))
+	s.botCommands = append(s.botCommands, NewBotCommand(usage, definition, true))
 }
 
 // BotCommand define a new bot command and append it to the list of existing commands
 func (s *Slacker) BotCommand(usage string, definition *CommandDefinition) {
 	botPrefix := "(Bot|bot) "
-	s.botCommands = append(s.botCommands, NewBotCommand(botPrefix+usage, definition))
+	s.botCommands = append(s.botCommands, NewBotCommand(botPrefix+usage, definition, true))
+}
+
+// BotCommand define a new bot command and append it to the list of existing commands
+func (s *Slacker) GeneralCommand(usage string, definition *CommandDefinition) {
+	s.botCommands = append(s.botCommands, NewBotCommand(usage, definition, false))
 }
 
 // CommandEvents returns read only command events channel
@@ -277,9 +279,9 @@ func (s *Slacker) defaultHelp(botCtx BotContext, request Request, response Respo
 		tokens := command.Tokenize()
 		for _, token := range tokens {
 			if token.IsParameter() {
-				helpMessage += fmt.Sprintf(codeMessageFormat, token.Word) + space
+				helpMessage += fmt.Sprintf(codeMessageFormat, token.Word()) + space
 			} else {
-				helpMessage += fmt.Sprintf(boldMessageFormat, token.Word) + space
+				helpMessage += fmt.Sprintf(boldMessageFormat, token.Word()) + space
 			}
 		}
 
@@ -321,7 +323,7 @@ func (s *Slacker) prependHelpHandle() {
 		s.helpDefinition.Description = helpCommand
 	}
 
-	s.botCommands = append([]BotCommand{NewBotCommand(helpCommand, s.helpDefinition)}, s.botCommands...)
+	s.botCommands = append([]BotCommand{NewBotCommand(helpCommand, s.helpDefinition, true)}, s.botCommands...)
 }
 
 func (s *Slacker) handleInteractiveEvent(slacker *Slacker, evt *socketmode.Event, callback *slack.InteractionCallback, req *socketmode.Request) {
@@ -385,18 +387,24 @@ func (s *Slacker) handleMessageEvent(ctx context.Context, evt interface{}, req *
 
 	botCtx := s.botContextConstructor(ctx, s.client, s.socketModeClient, ev)
 	response := s.responseConstructor(botCtx)
-
 	eventTxt := s.cleanEventInput(ev.Text)
+	var request Request
+	var parameters []allot.Parameter
 
 	for _, cmd := range s.botCommands {
+		if cmd.IsParameterizedCommand() {
+			cmdMatches := cmd.Matches(eventTxt)
+			if !cmdMatches {
+				continue
+			}
+			parameters = cmd.Parameters()
+		} else {
+			cmdMatches := cmd.Contains(eventTxt)
+			if !cmdMatches {
+				continue
+			}
 
-		cmdMatches := cmd.Matches(eventTxt)
-		if !cmdMatches {
-			continue
 		}
-		parameters := cmd.Parameters()
-		cmdMatch, _ := cmd.Match(eventTxt)
-		request := s.requestConstructor(botCtx, parameters, cmdMatch)
 		if cmd.Definition().AuthorizationFunc != nil && !cmd.Definition().AuthorizationFunc(botCtx, request) {
 			response.ReportError(s.errUnauthorized)
 			return

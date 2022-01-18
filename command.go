@@ -1,6 +1,8 @@
 package slacker
 
 import (
+	"strings"
+
 	allot "github.com/sdslabs/allot/pkg"
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/socketmode"
@@ -21,12 +23,13 @@ type CommandDefinition struct {
 }
 
 // NewBotCommand creates a new bot command object
-func NewBotCommand(usage string, definition *CommandDefinition) BotCommand {
+func NewBotCommand(usage string, definition *CommandDefinition, isParameterizedCommand bool) BotCommand {
 	command := allot.New(usage)
 	return &botCommand{
-		usage:      usage,
-		definition: definition,
-		command:    command,
+		usage:                  usage,
+		definition:             definition,
+		command:                command,
+		isParameterizedCommand: isParameterizedCommand,
 	}
 }
 
@@ -34,7 +37,9 @@ func NewBotCommand(usage string, definition *CommandDefinition) BotCommand {
 type BotCommand interface {
 	Usage() string
 	Definition() *CommandDefinition
+	IsParameterizedCommand() bool
 
+	Contains(text string) bool
 	Match(req string) (allot.MatchInterface, error)
 	Matches(text string) bool
 	Tokenize() []*allot.Token
@@ -45,9 +50,10 @@ type BotCommand interface {
 
 // botCommand structure contains the bot's command, description and handler
 type botCommand struct {
-	usage      string
-	definition *CommandDefinition
-	command    *allot.Command
+	usage                  string
+	definition             *CommandDefinition
+	command                *allot.Command
+	isParameterizedCommand bool
 }
 
 // Usage returns the command usage
@@ -58,6 +64,15 @@ func (c *botCommand) Usage() string {
 // Description returns the command description
 func (c *botCommand) Definition() *CommandDefinition {
 	return c.definition
+}
+
+// IsParameterizedCommand returns whether command is parameterized command or we only want substring match
+func (c *botCommand) IsParameterizedCommand() bool {
+	return c.isParameterizedCommand
+}
+
+func (c *botCommand) Contains(text string) bool {
+	return strings.Contains(c.usage, text)
 }
 
 // Match determines whether the bot should respond based on the text received
