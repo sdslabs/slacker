@@ -399,7 +399,7 @@ func (s *Slacker) handleMessageEvent(ctx context.Context, evt interface{}, req *
 			}
 			parameters = cmd.Parameters()
 		} else {
-			cmdMatches := cmd.Contains(eventTxt)
+			cmdMatches := cmd.MsgContains(ev.Text)
 			if !cmdMatches {
 				continue
 			}
