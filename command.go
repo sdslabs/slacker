@@ -1,6 +1,7 @@
 package slacker
 
 import (
+	"reflect"
 	"strings"
 
 	allot "github.com/sdslabs/allot/pkg"
@@ -15,13 +16,14 @@ type CommandDefinition struct {
 }
 
 // NewBotCommand creates a new bot command object
-func NewBotCommand(usage string, definition *CommandDefinition, isParameterizedCommand bool) BotCommand {
+func NewBotCommand(usage string, definition *CommandDefinition, isParameterizedCommand bool, includeChannelIds []string) BotCommand {
 	command := allot.New(usage)
 	return &botCommand{
 		usage:                  usage,
 		definition:             definition,
 		command:                command,
 		isParameterizedCommand: isParameterizedCommand,
+		includeChannelIds:      includeChannelIds,
 	}
 }
 
@@ -31,6 +33,7 @@ type BotCommand interface {
 	Definition() *CommandDefinition
 	IsParameterizedCommand() bool
 
+	ContainsChannel(channelId string) bool
 	MsgContains(text string) bool
 	Match(req string) (allot.MatchInterface, error)
 	Matches(text string) bool
@@ -45,6 +48,7 @@ type botCommand struct {
 	definition             *CommandDefinition
 	command                *allot.Command
 	isParameterizedCommand bool
+	includeChannelIds      []string
 }
 
 // Usage returns the command usage
@@ -60,6 +64,18 @@ func (c *botCommand) Definition() *CommandDefinition {
 // IsParameterizedCommand returns whether command is parameterized command or we only want substring match
 func (c *botCommand) IsParameterizedCommand() bool {
 	return c.isParameterizedCommand
+}
+
+func (c *botCommand) ContainsChannel(channelId string) bool {
+	if reflect.DeepEqual(c.includeChannelIds, defaultIncludeChannelIds) {
+		return true
+	}
+	for _, chId := range c.includeChannelIds {
+		if chId == channelId {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *botCommand) MsgContains(text string) bool {

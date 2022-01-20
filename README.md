@@ -20,6 +20,7 @@ Built on top of the Slack API [github.com/slack-go/slack](https://github.com/sla
 ## Features in forked repo
 
 - Support for non-parameterized command
+- Ability to trigger command from specific channels only
 
 ## Dependencies
 
