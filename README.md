@@ -18,6 +18,17 @@ Built on top of the Slack API [github.com/slack-go/slack](https://github.com/sla
 - Produces events for executed commands
 - Full access to the Slack API [github.com/slack-go/slack](https://github.com/slack-go/slack)
 
+## Features in forked repo
+
+- Support for non-parameterized command
+- Ability to trigger command from specific channels only
+
+
+## Dependencies
+
+- `allot` [github.com/sdslabs/allot](https://github.com/sdslabs/allot)
+- `slack` [github.com/slack-go/slack](https://github.com/slack-go/slack)
+
 # Install
 
 ```
