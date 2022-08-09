@@ -1,6 +1,6 @@
 # github.com/gorilla/websocket v1.4.2
 github.com/gorilla/websocket
-# github.com/sdslabs/allot v1.2.2
+# github.com/sdslabs/allot v1.2.6
 ## explicit
 github.com/sdslabs/allot/pkg
 # github.com/shomali11/commander v0.0.0-20220716022157-b5248c76541a
