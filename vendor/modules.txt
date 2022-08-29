@@ -7,10 +7,10 @@ github.com/sdslabs/allot/pkg
 github.com/shomali11/commander
 # github.com/shomali11/proper v0.0.0-20180607004733-233a9a872c30
 github.com/shomali11/proper
-# github.com/shomali11/slacker v1.2.0
+# github.com/shomali11/slacker v1.3.0
 ## explicit
 github.com/shomali11/slacker
-# github.com/slack-go/slack v0.11.0
+# github.com/slack-go/slack v0.11.2
 ## explicit
 github.com/slack-go/slack
 github.com/slack-go/slack/internal/backoff
