@@ -10,7 +10,7 @@ github.com/shomali11/proper
 # github.com/shomali11/slacker v1.2.0
 ## explicit
 github.com/shomali11/slacker
-# github.com/slack-go/slack v0.11.0
+# github.com/slack-go/slack v0.11.3
 ## explicit
 github.com/slack-go/slack
 github.com/slack-go/slack/internal/backoff
